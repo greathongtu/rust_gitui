@@ -1,10 +1,12 @@
+mod git_branch;
+mod git_status;
+
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::Frame;
 use ratatui::{
     layout::{Constraint, Layout},
     widgets,
 };
-use std::process::Command;
 
 fn main() -> std::io::Result<()> {
     let terminal = ratatui::init();
@@ -44,31 +46,7 @@ fn draw(frame: &mut Frame) {
     let [left_top, left_middle, left_down] = vertical.areas(left_area);
 
     frame.render_widget(widgets::Block::bordered().title("Diff"), right_area);
-    frame.render_widget(changed_files_widget(), left_top);
-    frame.render_widget(
-        widgets::Block::bordered().title("Local Branches"),
-        left_middle,
-    );
+    frame.render_widget(git_status::changed_files_widget(), left_top);
+    frame.render_widget(git_branch::git_branch(), left_middle);
     frame.render_widget(widgets::Block::bordered().title("Commits"), left_down);
-}
-
-fn changed_files_widget() -> impl widgets::Widget {
-    let left_top_block = widgets::Block::bordered().title("Changed Files");
-    let output = Command::new("git")
-        .args([
-            "status",
-            "--porcelain",
-            "-z",
-            "--untracked-files=all",
-            "--find-renames=50%",
-        ])
-        .output()
-        .expect("failed to execute git status command.")
-        .stdout;
-    let output_string = String::from_utf8(output)
-        .expect("failed to convert output to String.")
-        .lines()
-        .map(|line| line.to_string())
-        .collect::<Vec<String>>();
-    widgets::List::new(output_string).block(left_top_block)
 }
