@@ -1,12 +1,11 @@
 mod git_branch;
+mod git_commits;
+mod git_diff;
 mod git_status;
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::Frame;
-use ratatui::{
-    layout::{Constraint, Layout},
-    widgets,
-};
+use ratatui::layout::{Constraint, Layout};
 
 fn main() -> std::io::Result<()> {
     let terminal = ratatui::init();
@@ -30,6 +29,7 @@ fn handle_events() -> std::io::Result<bool> {
     match event::read()? {
         Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
             KeyCode::Char('q') => return Ok(true),
+            KeyCode::Char('r') => return Ok(false),
             // handle other key events
             _ => {}
         },
@@ -45,8 +45,8 @@ fn draw(frame: &mut Frame) {
     let vertical = Layout::vertical([Constraint::Fill(1); 3]);
     let [left_top, left_middle, left_down] = vertical.areas(left_area);
 
-    frame.render_widget(widgets::Block::bordered().title("Diff"), right_area);
+    frame.render_widget(git_diff::git_diff(), right_area);
     frame.render_widget(git_status::changed_files_widget(), left_top);
     frame.render_widget(git_branch::git_branch(), left_middle);
-    frame.render_widget(widgets::Block::bordered().title("Commits"), left_down);
+    frame.render_widget(git_commits::commits_history(), left_down);
 }
