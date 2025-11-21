@@ -34,15 +34,17 @@ pub struct ChangedFile {
 }
 
 pub fn refresh_states(app: &mut AppState) {
+    app.current_panel = Default::default();
     if let Ok(changed_files) = load_changed_files() {
         app.changed_files = changed_files;
         if !app.changed_files.is_empty() {
+            app.status_state.select(Some(0));
+        } else {
             app.status_state.select(None);
         }
     }
     app.branch_state.select(None);
     app.commit_state.select(None);
-    // app.current_panel = CurrentPanel::Status;
     app.diff_state.select(None);
     app.diff = load_diff();
     app.commits = load_commits();

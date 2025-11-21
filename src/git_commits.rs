@@ -1,4 +1,7 @@
-use ratatui::widgets::{self, List, ListItem};
+use ratatui::{
+    style::{Color, Style},
+    widgets::{self, List, ListItem},
+};
 use std::process::Command;
 
 pub fn load_commits() -> Vec<String> {
@@ -15,11 +18,13 @@ pub fn load_commits() -> Vec<String> {
         .collect()
 }
 
-pub fn widget(commits: &[String]) -> List<'_> {
+pub fn widget(commits: &[String], focused: bool) -> List<'_> {
     let block = widgets::Block::bordered().title("Commits");
 
     let items: Vec<ListItem> = commits.iter().map(|s| ListItem::new(s.as_str())).collect();
-    widgets::List::new(items)
-        .highlight_style(ratatui::style::Color::Green)
-        .block(block)
+    let list = widgets::List::new(items).block(block);
+    if focused {
+        return list.highlight_style(Style::new().bg(Color::Yellow));
+    }
+    list
 }

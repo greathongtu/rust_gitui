@@ -1,8 +1,11 @@
 use crate::state::ChangedFile;
-use ratatui::widgets::{self, List, ListItem};
+use ratatui::{
+    style::{Color, Style},
+    widgets::{self, List, ListItem},
+};
 use std::process::Command;
 
-pub fn widget(files: &[ChangedFile]) -> List<'_> {
+pub fn widget(files: &[ChangedFile], focused: bool) -> List<'_> {
     let block = widgets::Block::bordered().title("Status");
 
     let items: Vec<ListItem> = files
@@ -13,9 +16,12 @@ pub fn widget(files: &[ChangedFile]) -> List<'_> {
         })
         .collect();
 
-    widgets::List::new(items)
-        .highlight_style(ratatui::style::Color::Green)
-        .block(block)
+    let list = widgets::List::new(items).block(block);
+    if focused {
+        return list.highlight_style(Style::new().bg(Color::Yellow));
+    }
+
+    list
 }
 
 pub fn load_changed_files() -> std::io::Result<Vec<ChangedFile>> {
@@ -48,4 +54,42 @@ pub fn load_changed_files() -> std::io::Result<Vec<ChangedFile>> {
     }
 
     Ok(changed_files)
+}
+
+pub fn add_file(path: &str) -> std::io::Result<()> {
+    let status = Command::new("git").args(["add", "--", path]).status()?;
+    if status.success() {
+        return Ok(());
+    } else {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "git add failed",
+        ));
+    }
+}
+
+pub fn unstage_file(path: &str) -> std::io::Result<()> {
+    let status = Command::new("git")
+        .args(["restore", "--staged", "--", path])
+        .status()?;
+    if status.success() {
+        return Ok(());
+    } else {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "git restore staged failed",
+        ));
+    }
+}
+
+pub fn add_all_file() -> std::io::Result<()> {
+    let status = Command::new("git").args(["add", "-A"]).status()?;
+    if status.success() {
+        return Ok(());
+    } else {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "git add all failed",
+        ));
+    }
 }
