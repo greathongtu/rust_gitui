@@ -1,3 +1,4 @@
+mod events;
 mod git_branch;
 mod git_commits;
 mod git_diff;
@@ -6,7 +7,7 @@ mod state;
 
 use crate::state::AppState;
 use crate::state::refresh_states;
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use events::handle_events;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout};
 
@@ -33,29 +34,43 @@ fn run_loop(
     }
 }
 
-fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
-    match event::read()? {
-        Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
-            KeyCode::Char('q') => return Ok(true),
-            KeyCode::Char('r') => refresh_states(app),
-
-            // handle other key events
-            _ => {}
-        },
-        // handle other events
-        _ => {}
-    }
-    Ok(false)
-}
-
 fn draw(frame: &mut Frame, app: &mut AppState) {
     let horizontal = Layout::horizontal([Constraint::Percentage(33), Constraint::Fill(1)]);
     let [left_area, right_area] = horizontal.areas(frame.area());
     let vertical = Layout::vertical([Constraint::Fill(1); 3]);
     let [left_top, left_middle, left_down] = vertical.areas(left_area);
 
-    frame.render_widget(git_diff::widget(&app.diff), right_area);
-    frame.render_widget(git_status::widget(&app.changed_files), left_top);
-    frame.render_widget(git_branch::widget(&app.branches), left_middle);
-    frame.render_widget(git_commits::widget(&app.commits), left_down);
+    frame.render_stateful_widget(
+        git_status::widget(&app.changed_files),
+        left_top,
+        &mut app.status_state,
+    );
+    frame.render_stateful_widget(
+        git_branch::widget(&app.branches),
+        left_middle,
+        &mut app.branch_state,
+    );
+    frame.render_stateful_widget(
+        git_commits::widget(&app.commits),
+        left_down,
+        &mut app.commit_state,
+    );
+
+    frame.render_stateful_widget(git_diff::widget(&app.diff), right_area, &mut app.diff_state);
+
+    // let status = format!(
+    //     "status selected={:?} len={}",
+    //     app.status_state.selected(),
+    //     app.changed_files.len()
+    // );
+    // let block = ratatui::widgets::Block::default()
+    //     .borders(Borders::ALL)
+    //     .title("Debug");
+    // let para = Paragraph::new(Line::raw(status))
+    //     .block(block)
+    //     .style(Style::default().fg(Color::Yellow));
+
+    // let [_, debug_area] =
+    //     Layout::vertical([Constraint::Fill(1), Constraint::Length(5)]).areas(frame.area());
+    // frame.render_widget(para, debug_area);
 }

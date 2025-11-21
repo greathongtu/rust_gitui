@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use ratatui::widgets::{self, ListItem};
+use ratatui::widgets::{self, List, ListItem};
 
 pub fn load_branches() -> Vec<String> {
     let output = Command::new("git")
@@ -16,9 +16,11 @@ pub fn load_branches() -> Vec<String> {
         .collect()
 }
 
-pub fn widget(branches: &[String]) -> impl widgets::Widget {
+pub fn widget(branches: &[String]) -> List<'_> {
     let block = widgets::Block::bordered().title("Branches");
 
     let items: Vec<ListItem> = branches.iter().map(|s| ListItem::new(s.as_str())).collect();
-    widgets::List::new(items).block(block)
+    widgets::List::new(items)
+        .highlight_style(ratatui::style::Color::Green)
+        .block(block)
 }

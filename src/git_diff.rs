@@ -1,4 +1,4 @@
-use ratatui::widgets::{self, ListItem};
+use ratatui::widgets::{self, List, ListItem};
 use std::process::Command;
 
 pub fn load_diff() -> String {
@@ -11,10 +11,12 @@ pub fn load_diff() -> String {
     String::from_utf8(output).unwrap_or_default()
 }
 
-pub fn widget(diff: &str) -> impl widgets::Widget {
+pub fn widget(diff: &str) -> List<'_> {
     let block = widgets::Block::bordered().title("Diff");
 
     let items: Vec<ListItem> = diff.lines().map(|e| ListItem::new(e.to_string())).collect();
 
-    widgets::List::new(items).block(block)
+    widgets::List::new(items)
+        .highlight_style(ratatui::style::Color::Green)
+        .block(block)
 }
