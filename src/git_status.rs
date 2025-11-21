@@ -1,8 +1,11 @@
 use crate::state::ChangedFile;
-use ratatui::widgets::{self, List, ListItem};
+use ratatui::{
+    style::{Style, Stylize},
+    widgets::{self, List, ListItem},
+};
 use std::process::Command;
 
-pub fn widget(files: &[ChangedFile]) -> List<'_> {
+pub fn widget(files: &[ChangedFile], focused: bool) -> List<'_> {
     let block = widgets::Block::bordered().title("Status");
 
     let items: Vec<ListItem> = files
@@ -13,9 +16,12 @@ pub fn widget(files: &[ChangedFile]) -> List<'_> {
         })
         .collect();
 
-    widgets::List::new(items)
-        .highlight_style(ratatui::style::Color::Green)
-        .block(block)
+    let list = widgets::List::new(items).block(block);
+    if focused {
+        return list.highlight_style(Style::new().green().italic());
+    }
+
+    list
 }
 
 pub fn load_changed_files() -> std::io::Result<Vec<ChangedFile>> {

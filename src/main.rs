@@ -6,6 +6,7 @@ mod git_status;
 mod state;
 
 use crate::state::AppState;
+use crate::state::CurrentPanel;
 use crate::state::refresh_states;
 use events::handle_events;
 use ratatui::Frame;
@@ -41,22 +42,35 @@ fn draw(frame: &mut Frame, app: &mut AppState) {
     let [left_top, left_middle, left_down] = vertical.areas(left_area);
 
     frame.render_stateful_widget(
-        git_status::widget(&app.changed_files),
+        git_status::widget(
+            &app.changed_files,
+            matches!(app.current_panel, CurrentPanel::Status),
+        ),
         left_top,
         &mut app.status_state,
     );
     frame.render_stateful_widget(
-        git_branch::widget(&app.branches),
+        git_branch::widget(
+            &app.branches,
+            matches!(app.current_panel, CurrentPanel::Branch),
+        ),
         left_middle,
         &mut app.branch_state,
     );
     frame.render_stateful_widget(
-        git_commits::widget(&app.commits),
+        git_commits::widget(
+            &app.commits,
+            matches!(app.current_panel, CurrentPanel::Commit),
+        ),
         left_down,
         &mut app.commit_state,
     );
 
-    frame.render_stateful_widget(git_diff::widget(&app.diff), right_area, &mut app.diff_state);
+    frame.render_stateful_widget(
+        git_diff::widget(&app.diff, matches!(app.current_panel, CurrentPanel::Diff)),
+        right_area,
+        &mut app.diff_state,
+    );
 
     // let status = format!(
     //     "status selected={:?} len={}",
