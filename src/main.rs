@@ -11,8 +11,19 @@ use crate::state::refresh_states;
 use events::handle_events;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout};
+use ratatui::style::Color;
+use ratatui::style::Style;
+use ratatui::widgets::Block;
+use ratatui::widgets::Borders;
+use ratatui::widgets::Clear;
+use ratatui::widgets::Paragraph;
 
 fn main() -> std::io::Result<()> {
+    if let Some(path) = std::env::args().nth(1) {
+        if !path.is_empty() {
+            let _ = std::env::set_current_dir(&path);
+        }
+    }
     let terminal = ratatui::init();
     let mut app = AppState::default();
     refresh_states(&mut app);
@@ -72,6 +83,10 @@ fn draw(frame: &mut Frame, app: &mut AppState) {
         &mut app.diff_state,
     );
 
+    render_commit_popup(frame, app);
+    render_branch_popup(frame, app);
+    render_reset_popup(frame, app);
+    render_conflict_popup(frame, app);
     // let status = format!(
     //     "status selected={:?} len={}",
     //     app.status_state.selected(),
@@ -87,4 +102,146 @@ fn draw(frame: &mut Frame, app: &mut AppState) {
     // let [_, debug_area] =
     //     Layout::vertical([Constraint::Fill(1), Constraint::Length(5)]).areas(frame.area());
     // frame.render_widget(para, debug_area);
+}
+
+fn render_commit_popup(frame: &mut Frame<'_>, app: &mut AppState) {
+    if !app.commit_popup_open {
+        return;
+    }
+    let v = Layout::vertical([
+        Constraint::Percentage(40),
+        Constraint::Length(7),
+        Constraint::Percentage(40),
+    ])
+    .areas(frame.area());
+    let [_, mid_area, _] = v;
+
+    let h = Layout::horizontal([
+        Constraint::Percentage(20),
+        Constraint::Percentage(60),
+        Constraint::Percentage(20),
+    ])
+    .areas(mid_area);
+    let [_, popup_area, _] = h;
+
+    frame.render_widget(Clear, popup_area);
+    let title = match app.commit_popup_mode {
+        crate::state::CommitPopupMode::New => "Commit Message (Enter to submit, Esc to cancel)",
+        crate::state::CommitPopupMode::Edit => {
+            "Edit Commit Message (Enter to amend, Esc to cancel)"
+        }
+    };
+    let block = Block::default().borders(Borders::ALL).title(title);
+    let para = Paragraph::new(app.commit_input.clone())
+        .block(block)
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(para, popup_area);
+}
+
+fn render_branch_popup(frame: &mut Frame<'_>, app: &mut AppState) {
+    if !app.branch_popup_open {
+        return;
+    }
+    let v = Layout::vertical([
+        Constraint::Percentage(40),
+        Constraint::Length(5),
+        Constraint::Percentage(40),
+    ])
+    .areas(frame.area());
+    let [_, mid_area, _] = v;
+
+    let h = Layout::horizontal([
+        Constraint::Percentage(20),
+        Constraint::Percentage(60),
+        Constraint::Percentage(20),
+    ])
+    .areas(mid_area);
+    let [_, popup_area, _] = h;
+
+    frame.render_widget(Clear, popup_area);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("New/Checkout Branch (Enter to confirm, Esc to cancel)");
+    let para = Paragraph::new(app.branch_input.clone())
+        .block(block)
+        .style(Style::default().fg(Color::White));
+
+    frame.render_widget(para, popup_area);
+}
+
+fn render_reset_popup(frame: &mut Frame<'_>, app: &mut AppState) {
+    if !app.reset_popup_open {
+        return;
+    }
+
+    // 居中弹窗布局
+    let v = Layout::vertical([
+        Constraint::Percentage(40),
+        Constraint::Length(9),
+        Constraint::Percentage(40),
+    ])
+    .areas(frame.area());
+    let [_, mid_area, _] = v;
+
+    let h = Layout::horizontal([
+        Constraint::Percentage(25),
+        Constraint::Percentage(50),
+        Constraint::Percentage(25),
+    ])
+    .areas(mid_area);
+    let [_, popup_area, _] = h;
+
+    // 清除并渲染列表
+    frame.render_widget(Clear, popup_area);
+
+    let options = [
+        "soft  (移动 HEAD 到指定提交，保留索引与工作区变更)",
+        "mixed (默认：移动 HEAD，重置索引，保留工作区变更)",
+        "hard  (移动 HEAD，重置索引与工作区到指定提交)",
+    ];
+    let items: Vec<ratatui::widgets::ListItem> = options
+        .iter()
+        .map(|s| ratatui::widgets::ListItem::new(*s))
+        .collect();
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Reset to selected commit (↑/↓选择，space确定，Esc取消，s/m/h快速选择)");
+
+    let list = ratatui::widgets::List::new(items)
+        .block(block)
+        .highlight_style(Style::default().bg(Color::Yellow));
+
+    frame.render_stateful_widget(list, popup_area, &mut app.reset_state);
+}
+
+fn render_conflict_popup(frame: &mut Frame<'_>, app: &mut AppState) {
+    if !app.conflict_popup_open {
+        return;
+    }
+    let v = Layout::vertical([
+        Constraint::Percentage(40),
+        Constraint::Length(9),
+        Constraint::Percentage(40),
+    ])
+    .areas(frame.area());
+    let [_, mid_area, _] = v;
+
+    let h = Layout::horizontal([
+        Constraint::Percentage(25),
+        Constraint::Percentage(50),
+        Constraint::Percentage(25),
+    ])
+    .areas(mid_area);
+    let [_, popup_area, _] = h;
+
+    frame.render_widget(Clear, popup_area);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Conflict Detected (Esc关闭)");
+    let para = Paragraph::new(app.conflict_message.clone())
+        .block(block)
+        .style(Style::default().fg(Color::Red));
+    frame.render_widget(para, popup_area);
 }

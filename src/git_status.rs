@@ -12,7 +12,15 @@ pub fn widget(files: &[ChangedFile], focused: bool) -> List<'_> {
         .iter()
         .map(|file| {
             let text = format!("{}{} {}", file.x, file.y, file.path);
-            ListItem::new(text)
+
+            let style = if is_staged_index_code(file.x) {
+                Style::new().fg(Color::Green)
+            } else if file.y != ' ' {
+                Style::new().fg(Color::Red)
+            } else {
+                Style::new()
+            };
+            ListItem::new(text).style(style)
         })
         .collect();
 
@@ -22,6 +30,10 @@ pub fn widget(files: &[ChangedFile], focused: bool) -> List<'_> {
     }
 
     list
+}
+
+pub fn is_staged_index_code(x: char) -> bool {
+    matches!(x, 'A' | 'M' | 'D' | 'R' | 'C' | 'U')
 }
 
 pub fn load_changed_files() -> std::io::Result<Vec<ChangedFile>> {
@@ -53,6 +65,7 @@ pub fn load_changed_files() -> std::io::Result<Vec<ChangedFile>> {
         });
     }
 
+    changed_files.sort_by(|a, b| a.path.cmp(&b.path));
     Ok(changed_files)
 }
 
@@ -91,5 +104,43 @@ pub fn add_all_file() -> std::io::Result<()> {
             std::io::ErrorKind::Other,
             "git add all failed",
         ));
+    }
+}
+
+pub fn unstage_all_file() -> std::io::Result<()> {
+    let status = std::process::Command::new("git")
+        .args(["reset", "--quiet"])
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "git reset (unstage all) failed",
+        ))
+    }
+}
+
+pub fn pull() -> std::io::Result<()> {
+    let status = Command::new("git").args(["pull"]).status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "git pull failed",
+        ))
+    }
+}
+
+pub fn push() -> std::io::Result<()> {
+    let status = Command::new("git").args(["push"]).status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "git push failed",
+        ))
     }
 }
