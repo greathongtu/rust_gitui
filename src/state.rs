@@ -58,10 +58,39 @@ pub struct ChangedFile {
     pub path: String,
 }
 
-pub fn refresh_states(app: &mut AppState) {
-    let prev_panel = app.current_panel;
-    app.current_panel = prev_panel;
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RefreshScope {
+    Status,
+    Branches,
+    Commits,
+    Diff,
+}
 
+pub fn refresh_states(app: &mut AppState) {
+    refresh_scopes(
+        app,
+        &[
+            RefreshScope::Status,
+            RefreshScope::Branches,
+            RefreshScope::Commits,
+            RefreshScope::Diff,
+        ],
+    );
+}
+
+pub fn refresh_scopes(app: &mut AppState, scopes: &[RefreshScope]) {
+    for s in scopes {
+        match s {
+            RefreshScope::Status => refresh_status_scope(app),
+            RefreshScope::Branches => refresh_branches_scope(app),
+            RefreshScope::Commits => refresh_commits_scope(app),
+            RefreshScope::Diff => refresh_diff_scope(app),
+        }
+    }
+}
+
+fn refresh_status_scope(app: &mut AppState) {
+    // 记住并恢复选中
     let prev_status_idx = app.status_state.selected();
     if let Ok(changed_files) = load_changed_files() {
         app.changed_files = changed_files;
@@ -69,31 +98,37 @@ pub fn refresh_states(app: &mut AppState) {
         if len == 0 {
             app.status_state.select(None);
         } else {
-            let idx = prev_status_idx.unwrap_or(0).min(len - 1);
+            let idx = prev_status_idx.unwrap_or(0).min(len.saturating_sub(1));
             app.status_state.select(Some(idx));
         }
     }
+}
 
+fn refresh_branches_scope(app: &mut AppState) {
     let prev_branch_idx = app.branch_state.selected();
     app.branches = load_branches();
-    let branches_len = app.branches.len();
-    if branches_len == 0 {
+    let len = app.branches.len();
+    if len == 0 {
         app.branch_state.select(None);
     } else {
-        let idx = prev_branch_idx.unwrap_or(0).min(branches_len - 1);
+        let idx = prev_branch_idx.unwrap_or(0).min(len.saturating_sub(1));
         app.branch_state.select(Some(idx));
     }
+}
 
+fn refresh_commits_scope(app: &mut AppState) {
     let prev_commit_idx = app.commit_state.selected();
     app.commits = load_commits();
-    let commits_len = app.commits.len();
-    if commits_len == 0 {
+    let len = app.commits.len();
+    if len == 0 {
         app.commit_state.select(None);
     } else {
-        let idx = prev_commit_idx.unwrap_or(0).min(commits_len - 1);
+        let idx = prev_commit_idx.unwrap_or(0).min(len.saturating_sub(1));
         app.commit_state.select(Some(idx));
     }
+}
 
+fn refresh_diff_scope(app: &mut AppState) {
     let prev_diff_idx = app.diff_state.selected();
     app.diff = load_diff();
     if let Some(idx) = prev_diff_idx {

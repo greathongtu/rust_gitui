@@ -1,5 +1,5 @@
-use crate::state::{AppState, CommitPopupMode, CurrentPanel, refresh_states};
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crate::state::{AppState, CommitPopupMode, CurrentPanel, RefreshScope, refresh_scopes};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 
 // todo: output command
 pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
@@ -11,11 +11,19 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                         app.branch_popup_open = false;
                         app.branch_input.clear();
                     }
-                    KeyCode::Enter => {
+                    KeyCode::Char(' ') => {
                         let _ = crate::git_branch::checkout_or_create_branch(&app.branch_input);
                         app.branch_popup_open = false;
                         app.branch_input.clear();
-                        refresh_states(app);
+                        refresh_scopes(
+                            app,
+                            &[
+                                RefreshScope::Branches,
+                                RefreshScope::Commits,
+                                RefreshScope::Status,
+                                RefreshScope::Diff,
+                            ],
+                        );
                     }
                     KeyCode::Backspace => {
                         app.branch_input.pop();
@@ -37,7 +45,7 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                         app.pending_reset_hash = None;
                         app.reset_state.select(None);
                     }
-                    KeyCode::Enter => {
+                    KeyCode::Char(' ') => {
                         let sel = app.reset_state.selected().unwrap_or(1);
                         let mode = match sel {
                             0 => "soft",
@@ -50,18 +58,39 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                         }
                         app.reset_popup_open = false;
                         app.pending_reset_hash = None;
-                        refresh_states(app);
+                        refresh_scopes(
+                            app,
+                            &[
+                                RefreshScope::Branches,
+                                RefreshScope::Commits,
+                                RefreshScope::Status,
+                                RefreshScope::Diff,
+                            ],
+                        );
                     }
+
                     KeyCode::Up | KeyCode::Char('k') => {
                         let i = app.reset_state.selected().unwrap_or(1);
                         let i = i.saturating_sub(1);
                         app.reset_state.select(Some(i));
                     }
+                    KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        let i = app.reset_state.selected().unwrap_or(1);
+                        let i = i.saturating_sub(1);
+                        app.reset_state.select(Some(i));
+                    }
+
                     KeyCode::Down | KeyCode::Char('j') => {
                         let i = app.reset_state.selected().unwrap_or(1);
                         let i = (i + 1).min(2);
                         app.reset_state.select(Some(i));
                     }
+                    KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        let i = app.reset_state.selected().unwrap_or(1);
+                        let i = (i + 1).min(2);
+                        app.reset_state.select(Some(i));
+                    }
+
                     KeyCode::Char('s') => app.reset_state.select(Some(0)),
                     KeyCode::Char('m') => app.reset_state.select(Some(1)),
                     KeyCode::Char('h') => app.reset_state.select(Some(2)),
@@ -86,7 +115,14 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                         }
                         app.commit_popup_open = false;
                         app.commit_input.clear();
-                        refresh_states(app);
+                        refresh_scopes(
+                            app,
+                            &[
+                                RefreshScope::Commits,
+                                RefreshScope::Status,
+                                RefreshScope::Diff,
+                            ],
+                        );
                     }
                     KeyCode::Backspace => {
                         app.commit_input.pop();
@@ -107,7 +143,6 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                     KeyCode::Esc | KeyCode::Enter => {
                         app.conflict_popup_open = false;
                         app.conflict_message.clear();
-                        refresh_states(app);
                     }
                     _ => {}
                 }
@@ -118,17 +153,32 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                 KeyCode::Char('q') => return Ok(true),
                 KeyCode::Char('p') => {
                     let _ = crate::git_status::pull();
-                    refresh_states(app);
+                    refresh_scopes(
+                        app,
+                        &[
+                            RefreshScope::Branches,
+                            RefreshScope::Commits,
+                            RefreshScope::Status,
+                            RefreshScope::Diff,
+                        ],
+                    );
                 }
                 KeyCode::Char('P') => {
                     let _ = crate::git_status::push();
-                    refresh_states(app);
+                    refresh_scopes(app, &[RefreshScope::Branches, RefreshScope::Commits]);
                 }
 
                 KeyCode::Char('A') => {
                     if matches!(app.current_panel, CurrentPanel::Status) {
                         let _ = crate::git_commits::amend_last_no_edit();
-                        refresh_states(app);
+                        refresh_scopes(
+                            app,
+                            &[
+                                RefreshScope::Commits,
+                                RefreshScope::Status,
+                                RefreshScope::Diff,
+                            ],
+                        );
                     }
                 }
 
@@ -144,8 +194,6 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                             crate::git_commits::get_head_commit_message().unwrap_or_default();
                         app.commit_popup_mode = CommitPopupMode::Edit;
                         return Ok(false);
-                    } else {
-                        refresh_states(app);
                     }
                 }
                 KeyCode::Char('d') => {
@@ -154,7 +202,14 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                             if let Some(line) = app.commits.get(idx) {
                                 if let Some(hash) = crate::git_commits::parse_commit_hash(line) {
                                     let _ = crate::git_commits::drop_commit(&hash);
-                                    refresh_states(app);
+                                    refresh_scopes(
+                                        app,
+                                        &[
+                                            RefreshScope::Commits,
+                                            RefreshScope::Status,
+                                            RefreshScope::Diff,
+                                        ],
+                                    );
                                 }
                             }
                         }
@@ -205,7 +260,15 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                                         format!("检测到合并冲突。\n请手动解决冲突");
                                     return Ok(false);
                                 } else {
-                                    refresh_states(app);
+                                    refresh_scopes(
+                                        app,
+                                        &[
+                                            RefreshScope::Branches,
+                                            RefreshScope::Commits,
+                                            RefreshScope::Status,
+                                            RefreshScope::Diff,
+                                        ],
+                                    );
                                 }
                             }
                         }
@@ -224,7 +287,15 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                                         String::from("检测到 rebase 冲突。\n请手动解决冲突");
                                     return Ok(false);
                                 } else {
-                                    refresh_states(app);
+                                    refresh_scopes(
+                                        app,
+                                        &[
+                                            RefreshScope::Branches,
+                                            RefreshScope::Commits,
+                                            RefreshScope::Status,
+                                            RefreshScope::Diff,
+                                        ],
+                                    );
                                 }
                             }
                         }
@@ -235,7 +306,15 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                         if let Some(idx) = app.branch_state.selected() {
                             if let Some(branch) = app.branches.get(idx) {
                                 let _ = crate::git_branch::checkout_branch(branch);
-                                refresh_states(app);
+                                refresh_scopes(
+                                    app,
+                                    &[
+                                        RefreshScope::Branches,
+                                        RefreshScope::Commits,
+                                        RefreshScope::Status,
+                                        RefreshScope::Diff,
+                                    ],
+                                );
                             }
                         }
                     }
@@ -248,7 +327,7 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                                     let _ = crate::git_status::unstage_file(&file.path);
                                 }
 
-                                refresh_states(app);
+                                refresh_scopes(app, &[RefreshScope::Status, RefreshScope::Diff]);
                             }
                         }
                     }
@@ -257,7 +336,14 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                             if let Some(line) = app.commits.get(idx) {
                                 if let Some(hash) = crate::git_commits::parse_commit_hash(line) {
                                     let _ = crate::git_commits::checkout_commit(&hash);
-                                    refresh_states(app);
+                                    refresh_scopes(
+                                        app,
+                                        &[
+                                            RefreshScope::Commits,
+                                            RefreshScope::Status,
+                                            RefreshScope::Diff,
+                                        ],
+                                    );
                                 }
                             }
                         }
@@ -276,7 +362,7 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                             let _ = crate::git_status::add_all_file();
                         }
 
-                        refresh_states(app);
+                        refresh_scopes(app, &[RefreshScope::Status, RefreshScope::Diff]);
                     }
                 }
                 KeyCode::Char('g') => {
