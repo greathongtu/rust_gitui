@@ -19,10 +19,10 @@ use ratatui::widgets::Clear;
 use ratatui::widgets::Paragraph;
 
 fn main() -> std::io::Result<()> {
-    if let Some(path) = std::env::args().nth(1) {
-        if !path.is_empty() {
-            let _ = std::env::set_current_dir(&path);
-        }
+    if let Some(path) = std::env::args().nth(1)
+        && !path.is_empty()
+    {
+        let _ = std::env::set_current_dir(&path);
     }
     let terminal = ratatui::init();
     let mut app = AppState::default();
@@ -88,21 +88,6 @@ fn draw(frame: &mut Frame, app: &mut AppState) {
     render_reset_popup(frame, app);
     render_conflict_popup(frame, app);
     render_push_force_popup(frame, app);
-    // let status = format!(
-    //     "status selected={:?} len={}",
-    //     app.status_state.selected(),
-    //     app.changed_files.len()
-    // );
-    // let block = ratatui::widgets::Block::default()
-    //     .borders(Borders::ALL)
-    //     .title("Debug");
-    // let para = Paragraph::new(Line::raw(status))
-    //     .block(block)
-    //     .style(Style::default().fg(Color::Yellow));
-
-    // let [_, debug_area] =
-    //     Layout::vertical([Constraint::Fill(1), Constraint::Length(5)]).areas(frame.area());
-    // frame.render_widget(para, debug_area);
 }
 
 fn render_commit_popup(frame: &mut Frame<'_>, app: &mut AppState) {
@@ -176,7 +161,6 @@ fn render_reset_popup(frame: &mut Frame<'_>, app: &mut AppState) {
         return;
     }
 
-    // 居中弹窗布局
     let v = Layout::vertical([
         Constraint::Percentage(40),
         Constraint::Length(9),
@@ -193,7 +177,6 @@ fn render_reset_popup(frame: &mut Frame<'_>, app: &mut AppState) {
     .areas(mid_area);
     let [_, popup_area, _] = h;
 
-    // 清除并渲染列表
     frame.render_widget(Clear, popup_area);
 
     let options = [

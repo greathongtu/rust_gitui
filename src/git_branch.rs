@@ -41,7 +41,7 @@ pub fn load_branches() -> Vec<BranchInfo> {
         let mut ahead: u32 = 0;
         let mut behind: u32 = 0;
 
-        // 解析类似 "[ahead 3]" "[behind 2]" "[ahead 3, behind 2]"
+        // "[ahead 3]" "[behind 2]" "[ahead 3, behind 2]"
         if let Some(pos) = track.find("ahead ") {
             let num = track[pos + 6..]
                 .split(|c: char| !c.is_ascii_digit())
@@ -113,10 +113,10 @@ pub fn checkout_branch(raw_name: &str) -> std::io::Result<()> {
     if status.success() {
         Ok(())
     } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("git checkout {} failed", name),
-        ))
+        Err(std::io::Error::other(format!(
+            "git checkout {} failed",
+            name
+        )))
     }
 }
 
@@ -164,10 +164,7 @@ fn checkout_local(name: &str) -> io::Result<()> {
     if status.success() {
         Ok(())
     } else {
-        Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("git checkout {} failed", name),
-        ))
+        Err(io::Error::other(format!("git checkout {} failed", name)))
     }
 }
 
@@ -178,10 +175,7 @@ fn create_branch(name: &str) -> io::Result<()> {
     if status.success() {
         Ok(())
     } else {
-        Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("git checkout -b {} failed", name),
-        ))
+        Err(io::Error::other(format!("git checkout -b {} failed", name)))
     }
 }
 
@@ -192,15 +186,14 @@ fn checkout_tracking(remote_ref_short: &str) -> io::Result<()> {
     if status.success() {
         Ok(())
     } else {
-        Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("git checkout --track {} failed", remote_ref_short),
-        ))
+        Err(io::Error::other(format!(
+            "git checkout --track {} failed",
+            remote_ref_short
+        )))
     }
 }
 
 fn local_branch_exists(name: &str) -> io::Result<bool> {
-    // 使用 show-ref 校验本地分支是否存在
     let status = Command::new("git")
         .args([
             "show-ref",
@@ -212,7 +205,6 @@ fn local_branch_exists(name: &str) -> io::Result<bool> {
     Ok(status.success())
 }
 
-// 找出任意一个匹配的远端分支（优先 origin/<name>，否则选第一个匹配）
 fn find_remote_for_branch(name: &str) -> io::Result<Option<String>> {
     let output = Command::new("git")
         .args(["for-each-ref", "--format=%(refname:short)", "refs/remotes"])
@@ -238,10 +230,7 @@ fn find_remote_for_branch(name: &str) -> io::Result<Option<String>> {
 }
 
 fn split_remote_ref(remote_ref: &str) -> Option<(&str, &str)> {
-    // "origin/feat" -> ("origin", "feat")
-    let mut it = remote_ref.splitn(2, '/');
-    let remote = it.next()?;
-    let short = it.next()?;
+    let (remote, short) = remote_ref.split_once('/')?;
     Some((remote, short))
 }
 
@@ -250,20 +239,15 @@ pub fn merge_branch(raw_target: &str) -> io::Result<()> {
     if target.is_empty() {
         return Ok(());
     }
-    // 使用 --no-edit 避免打开编辑器；保留默认合并信息
     let status = Command::new("git")
         .args(["merge", "--no-edit", &target])
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::inherit())
+        .stderr(Stdio::null())
+        .stdout(Stdio::null())
         .status()?;
     if status.success() {
         Ok(())
     } else {
-        // 非 0 退出码可能表示冲突或其它错误，调用方可进一步检查冲突
-        Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("git merge {} failed", target),
-        ))
+        Err(io::Error::other(format!("git merge {} failed", target)))
     }
 }
 
@@ -274,21 +258,17 @@ pub fn rebase_onto_branch(raw_target: &str) -> io::Result<()> {
     }
     let status = Command::new("git")
         .args(["rebase", &target])
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::inherit())
+        .stderr(Stdio::null())
+        .stdout(Stdio::null())
         .status()?;
     if status.success() {
         Ok(())
     } else {
-        Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("git rebase {} failed", target),
-        ))
+        Err(io::Error::other(format!("git rebase {} failed", target)))
     }
 }
 
 pub fn has_conflicts() -> io::Result<bool> {
-    // git ls-files -u 输出非空即存在未合并条目
     let output = Command::new("git").args(["ls-files", "-u"]).output()?;
     if output.status.success() {
         return Ok(!output.stdout.is_empty());
@@ -304,5 +284,6 @@ pub fn has_conflicts() -> io::Result<bool> {
         let y = chars.next().unwrap_or(' ');
         x == 'U' || y == 'U'
     });
-    return Ok(conflicted);
+
+    Ok(conflicted)
 }

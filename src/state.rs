@@ -62,7 +62,6 @@ pub struct ChangedFile {
     pub path: String,
 }
 
-// 分支信息（用于显示箭头计数）
 #[derive(Clone, Default)]
 pub struct BranchInfo {
     pub name: String,
@@ -103,7 +102,6 @@ pub fn refresh_scopes(app: &mut AppState, scopes: &[RefreshScope]) {
 }
 
 fn refresh_status_scope(app: &mut AppState) {
-    // 记住并恢复选中
     let prev_status_idx = app.status_state.selected();
     if let Ok(changed_files) = load_changed_files() {
         app.changed_files = changed_files;

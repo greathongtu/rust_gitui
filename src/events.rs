@@ -204,22 +204,20 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                     }
                 }
                 KeyCode::Char('d') => {
-                    if matches!(app.current_panel, CurrentPanel::Commit) {
-                        if let Some(idx) = app.commit_state.selected() {
-                            if let Some(line) = app.commits.get(idx) {
-                                if let Some(hash) = crate::git_commits::parse_commit_hash(line) {
-                                    let _ = crate::git_commits::drop_commit(&hash);
-                                    refresh_scopes(
-                                        app,
-                                        &[
-                                            RefreshScope::Commits,
-                                            RefreshScope::Status,
-                                            RefreshScope::Diff,
-                                        ],
-                                    );
-                                }
-                            }
-                        }
+                    if matches!(app.current_panel, CurrentPanel::Commit)
+                        && let Some(idx) = app.commit_state.selected()
+                        && let Some(line) = app.commits.get(idx)
+                        && let Some(hash) = crate::git_commits::parse_commit_hash(line)
+                    {
+                        let _ = crate::git_commits::drop_commit(&hash);
+                        refresh_scopes(
+                            app,
+                            &[
+                                RefreshScope::Commits,
+                                RefreshScope::Status,
+                                RefreshScope::Diff,
+                            ],
+                        );
                     }
                 }
 
@@ -256,103 +254,98 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                     }
                 }
                 KeyCode::Char('M') => {
-                    if matches!(app.current_panel, CurrentPanel::Branch) {
-                        if let Some(idx) = app.branch_state.selected() {
-                            if let Some(branch) = app.branches.get(idx) {
-                                let target = crate::git_branch::normalize_branch_name(&branch.name);
-                                let _ = crate::git_branch::merge_branch(&target);
-                                if crate::git_branch::has_conflicts().unwrap_or(false) {
-                                    app.conflict_popup_open = true;
-                                    app.conflict_message =
-                                        format!("检测到合并冲突。\n请手动解决冲突");
-                                    return Ok(false);
-                                } else {
-                                    refresh_scopes(
-                                        app,
-                                        &[
-                                            RefreshScope::Branches,
-                                            RefreshScope::Commits,
-                                            RefreshScope::Status,
-                                            RefreshScope::Diff,
-                                        ],
-                                    );
-                                }
-                            }
+                    if matches!(app.current_panel, CurrentPanel::Branch)
+                        && let Some(idx) = app.branch_state.selected()
+                        && let Some(branch) = app.branches.get(idx)
+                    {
+                        let target = crate::git_branch::normalize_branch_name(&branch.name);
+                        let _ = crate::git_branch::merge_branch(&target);
+                        if crate::git_branch::has_conflicts().unwrap_or(false) {
+                            app.conflict_popup_open = true;
+                            app.conflict_message = "检测到合并冲突。\n请手动解决冲突".to_owned();
+                            return Ok(false);
+                        } else {
+                            refresh_scopes(
+                                app,
+                                &[
+                                    RefreshScope::Branches,
+                                    RefreshScope::Commits,
+                                    RefreshScope::Status,
+                                    RefreshScope::Diff,
+                                ],
+                            );
                         }
                     }
                 }
-                // rebase：在分支面板选中目标分支后按 r
                 KeyCode::Char('r') => {
-                    if matches!(app.current_panel, CurrentPanel::Branch) {
-                        if let Some(idx) = app.branch_state.selected() {
-                            if let Some(branch) = app.branches.get(idx) {
-                                let target = crate::git_branch::normalize_branch_name(&branch.name);
-                                let _ = crate::git_branch::rebase_onto_branch(&target);
-                                if crate::git_branch::has_conflicts().unwrap_or(false) {
-                                    app.conflict_popup_open = true;
-                                    app.conflict_message =
-                                        String::from("检测到 rebase 冲突。\n请手动解决冲突");
-                                    return Ok(false);
-                                } else {
-                                    refresh_scopes(
-                                        app,
-                                        &[
-                                            RefreshScope::Branches,
-                                            RefreshScope::Commits,
-                                            RefreshScope::Status,
-                                            RefreshScope::Diff,
-                                        ],
-                                    );
-                                }
-                            }
+                    if matches!(app.current_panel, CurrentPanel::Branch)
+                        && let Some(idx) = app.branch_state.selected()
+                        && let Some(branch) = app.branches.get(idx)
+                    {
+                        let target = crate::git_branch::normalize_branch_name(&branch.name);
+                        let _ = crate::git_branch::rebase_onto_branch(&target);
+                        if crate::git_branch::has_conflicts().unwrap_or(false) {
+                            app.conflict_popup_open = true;
+                            app.conflict_message =
+                                String::from("检测到 rebase 冲突。\n请手动解决冲突");
+                            return Ok(false);
+                        } else {
+                            refresh_scopes(
+                                app,
+                                &[
+                                    RefreshScope::Branches,
+                                    RefreshScope::Commits,
+                                    RefreshScope::Status,
+                                    RefreshScope::Diff,
+                                ],
+                            );
                         }
                     }
                 }
                 KeyCode::Char(' ') => match app.current_panel {
                     CurrentPanel::Branch => {
-                        if let Some(idx) = app.branch_state.selected() {
-                            if let Some(branch) = app.branches.get(idx) {
-                                let _ = crate::git_branch::checkout_branch(&branch.name);
-                                refresh_scopes(
-                                    app,
-                                    &[
-                                        RefreshScope::Branches,
-                                        RefreshScope::Commits,
-                                        RefreshScope::Status,
-                                        RefreshScope::Diff,
-                                    ],
-                                );
-                            }
+                        if let Some(idx) = app.branch_state.selected()
+                            && let Some(branch) = app.branches.get(idx)
+                        {
+                            let _ = crate::git_branch::checkout_branch(&branch.name);
+                            refresh_scopes(
+                                app,
+                                &[
+                                    RefreshScope::Branches,
+                                    RefreshScope::Commits,
+                                    RefreshScope::Status,
+                                    RefreshScope::Diff,
+                                ],
+                            );
                         }
                     }
                     CurrentPanel::Status => {
-                        if let Some(idx) = app.status_state.selected() {
-                            if let Some(file) = app.changed_files.get(idx) {
-                                if file.x == ' ' || file.x == '?' {
-                                    let _ = crate::git_status::add_file(&file.path);
-                                } else {
-                                    let _ = crate::git_status::unstage_file(&file.path);
-                                }
-
-                                refresh_scopes(app, &[RefreshScope::Status, RefreshScope::Diff]);
+                        if let Some(idx) = app.status_state.selected()
+                            && let Some(file) = app.changed_files.get(idx)
+                        {
+                            if file.x == ' ' || file.x == '?' {
+                                let _ = crate::git_status::add_file(&file.path);
+                            } else {
+                                let _ = crate::git_status::unstage_file(&file.path);
                             }
+
+                            refresh_scopes(app, &[RefreshScope::Status, RefreshScope::Diff]);
                         }
                     }
                     CurrentPanel::Commit => {
-                        if let Some(idx) = app.commit_state.selected() {
-                            if let Some(line) = app.commits.get(idx) {
-                                if let Some(hash) = crate::git_commits::parse_commit_hash(line) {
-                                    let _ = crate::git_commits::checkout_commit(&hash);
-                                    refresh_scopes(
-                                        app,
-                                        &[
-                                            RefreshScope::Commits,
-                                            RefreshScope::Status,
-                                            RefreshScope::Diff,
-                                        ],
-                                    );
-                                }
-                            }
+                        if let Some(idx) = app.commit_state.selected()
+                            && let Some(line) = app.commits.get(idx)
+                            && let Some(hash) = crate::git_commits::parse_commit_hash(line)
+                        {
+                            let _ = crate::git_commits::checkout_commit(&hash);
+                            refresh_scopes(
+                                app,
+                                &[
+                                    RefreshScope::Commits,
+                                    RefreshScope::Status,
+                                    RefreshScope::Diff,
+                                ],
+                            );
                         }
                     }
                     _ => {}
@@ -373,18 +366,15 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                     }
                 }
                 KeyCode::Char('g') => {
-                    if matches!(app.current_panel, CurrentPanel::Commit) {
-                        if let Some(idx) = app.commit_state.selected() {
-                            if let Some(line) = app.commits.get(idx) {
-                                if let Some(hash) = crate::git_commits::parse_commit_hash(line) {
-                                    app.pending_reset_hash = Some(hash);
-                                    app.reset_popup_open = true;
-                                    // 默认选中 mixed
-                                    app.reset_state.select(Some(1));
-                                    return Ok(false);
-                                }
-                            }
-                        }
+                    if matches!(app.current_panel, CurrentPanel::Commit)
+                        && let Some(idx) = app.commit_state.selected()
+                        && let Some(line) = app.commits.get(idx)
+                        && let Some(hash) = crate::git_commits::parse_commit_hash(line)
+                    {
+                        app.pending_reset_hash = Some(hash);
+                        app.reset_popup_open = true;
+                        app.reset_state.select(Some(1));
+                        return Ok(false);
                     }
                 }
                 _ => {}

@@ -72,12 +72,9 @@ pub fn load_changed_files() -> std::io::Result<Vec<ChangedFile>> {
 pub fn add_file(path: &str) -> std::io::Result<()> {
     let status = Command::new("git").args(["add", "--", path]).status()?;
     if status.success() {
-        return Ok(());
+        Ok(())
     } else {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "git add failed",
-        ));
+        Err(std::io::Error::other("git add failed"))
     }
 }
 
@@ -86,24 +83,18 @@ pub fn unstage_file(path: &str) -> std::io::Result<()> {
         .args(["restore", "--staged", "--", path])
         .status()?;
     if status.success() {
-        return Ok(());
+        Ok(())
     } else {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "git restore staged failed",
-        ));
+        Err(std::io::Error::other("git restore staged failed"))
     }
 }
 
 pub fn add_all_file() -> std::io::Result<()> {
     let status = Command::new("git").args(["add", "-A"]).status()?;
     if status.success() {
-        return Ok(());
+        Ok(())
     } else {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "git add all failed",
-        ));
+        Err(std::io::Error::other("git add all failed"))
     }
 }
 
@@ -114,10 +105,7 @@ pub fn unstage_all_file() -> std::io::Result<()> {
     if status.success() {
         Ok(())
     } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "git reset (unstage all) failed",
-        ))
+        Err(std::io::Error::other("git reset (unstage all) failed"))
     }
 }
 
@@ -126,10 +114,7 @@ pub fn pull() -> std::io::Result<()> {
     if status.success() {
         Ok(())
     } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "git pull failed",
-        ))
+        Err(std::io::Error::other("git pull failed"))
     }
 }
 
@@ -142,10 +127,7 @@ pub fn push() -> std::io::Result<()> {
     if status.success() {
         Ok(())
     } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "git push failed",
-        ))
+        Err(std::io::Error::other("git push failed"))
     }
 }
 
@@ -158,9 +140,6 @@ pub fn force_push() -> std::io::Result<()> {
     if status.success() {
         Ok(())
     } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "git push --force-with-lease failed",
-        ))
+        Err(std::io::Error::other("git push --force-with-lease failed"))
     }
 }
