@@ -7,7 +7,7 @@ use crate::{
 
 #[derive(Default)]
 pub struct AppState {
-    pub branches: Vec<String>,
+    pub branches: Vec<BranchInfo>,
     pub commits: Vec<String>,
     pub diff: String,
     pub changed_files: Vec<ChangedFile>,
@@ -34,6 +34,10 @@ pub struct AppState {
     // conflict alert popup
     pub conflict_popup_open: bool,
     pub conflict_message: String,
+
+    // push force popup
+    pub push_force_popup_open: bool,
+    pub push_force_message: String,
 }
 
 #[derive(Default, Clone, Copy)]
@@ -58,6 +62,15 @@ pub struct ChangedFile {
     pub path: String,
 }
 
+// 分支信息（用于显示箭头计数）
+#[derive(Clone, Default)]
+pub struct BranchInfo {
+    pub name: String,
+    pub ahead: u32,
+    pub behind: u32,
+    pub is_current: bool,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RefreshScope {
     Status,
@@ -66,7 +79,7 @@ pub enum RefreshScope {
     Diff,
 }
 
-pub fn refresh_states(app: &mut AppState) {
+pub fn refresh_all_states(app: &mut AppState) {
     refresh_scopes(
         app,
         &[

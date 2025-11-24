@@ -8,24 +8,93 @@ use ratatui::{
     widgets::{self, List, ListItem},
 };
 
-pub fn load_branches() -> Vec<String> {
-    let output = Command::new("git")
-        .args(["branch"])
+use crate::state::BranchInfo;
+
+pub fn load_branches() -> Vec<BranchInfo> {
+    let current = Command::new("git")
+        .args(["branch", "--show-current"])
         .output()
-        .expect("failed to execute git branch command.")
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+
+    let output = Command::new("git")
+        .args([
+            "for-each-ref",
+            "--format=%(refname:short)\t%(upstream:short)\t%(upstream:track)",
+            "refs/heads",
+        ])
+        .output()
+        .expect("failed to execute git for-each-ref command.")
         .stdout;
 
-    String::from_utf8(output)
-        .unwrap_or_default()
-        .lines()
-        .map(|s| s.to_string())
-        .collect()
+    let s = String::from_utf8_lossy(&output);
+    let mut res = Vec::new();
+
+    for line in s.lines() {
+        let mut parts = line.split('\t');
+        let name = parts.next().unwrap_or("").to_string();
+        let _upstream = parts.next().unwrap_or("");
+        let track = parts.next().unwrap_or("");
+
+        let mut ahead: u32 = 0;
+        let mut behind: u32 = 0;
+
+        // 解析类似 "[ahead 3]" "[behind 2]" "[ahead 3, behind 2]"
+        if let Some(pos) = track.find("ahead ") {
+            let num = track[pos + 6..]
+                .split(|c: char| !c.is_ascii_digit())
+                .next()
+                .unwrap_or("0");
+            ahead = num.parse().unwrap_or(0);
+        }
+        if let Some(pos) = track.find("behind ") {
+            let num = track[pos + 7..]
+                .split(|c: char| !c.is_ascii_digit())
+                .next()
+                .unwrap_or("0");
+            behind = num.parse().unwrap_or(0);
+        }
+
+        res.push(BranchInfo {
+            name: name.clone(),
+            ahead,
+            behind,
+            is_current: !current.is_empty() && current == name,
+        });
+    }
+
+    res
 }
 
-pub fn widget(branches: &[String], focused: bool) -> List<'_> {
+pub fn widget(branches: &[BranchInfo], focused: bool) -> List<'_> {
     let block = widgets::Block::bordered().title("Branches");
 
-    let items: Vec<ListItem> = branches.iter().map(|s| ListItem::new(s.as_str())).collect();
+    let items: Vec<ListItem> = branches
+        .iter()
+        .map(|b| {
+            let mut label = String::new();
+            if b.is_current {
+                label.push('*');
+                label.push(' ');
+            }
+            label.push_str(&b.name);
+            let mut counters = Vec::new();
+            if b.ahead > 0 {
+                counters.push(format!("↑{}", b.ahead));
+            }
+            if b.behind > 0 {
+                counters.push(format!("↓{}", b.behind));
+            }
+            if !counters.is_empty() {
+                label.push(' ');
+                label.push_str(&counters.join(" "));
+            }
+            ListItem::new(label)
+        })
+        .collect();
+
     let list = widgets::List::new(items).block(block);
     if focused {
         return list.highlight_style(Style::new().bg(Color::Yellow));
@@ -66,9 +135,7 @@ pub fn checkout_or_create_branch(input: &str) -> io::Result<()> {
     }
 
     if let Some(remote) = find_remote_for_branch(name)? {
-        // 先尝试直接 track checkout；失败则 fetch 后重试一次
         if checkout_tracking(&remote).is_err() {
-            // 尝试只 fetch 该分支，避免太重
             if let Some((remote_name, short)) = split_remote_ref(&remote) {
                 let _ = Command::new("git")
                     .args(["fetch", remote_name, &format!("{}:{}", short, short)])
@@ -87,7 +154,6 @@ pub fn checkout_or_create_branch(input: &str) -> io::Result<()> {
         return Ok(());
     }
 
-    // 本地不存在，远端也找不到：创建新分支
     create_branch(name)
 }
 
@@ -201,7 +267,6 @@ pub fn merge_branch(raw_target: &str) -> io::Result<()> {
     }
 }
 
-/// 将当前分支 rebase 到选中的目标分支上
 pub fn rebase_onto_branch(raw_target: &str) -> io::Result<()> {
     let target = normalize_branch_name(raw_target);
     if target.is_empty() {
@@ -228,7 +293,7 @@ pub fn has_conflicts() -> io::Result<bool> {
     if output.status.success() {
         return Ok(!output.stdout.is_empty());
     }
-    // 如果命令出错，回退用 status 检测（更稳妥可再做增强）
+
     let status_out = Command::new("git")
         .args(["status", "--porcelain"])
         .output()?;

@@ -1,4 +1,6 @@
-use crate::state::{AppState, CommitPopupMode, CurrentPanel, RefreshScope, refresh_scopes};
+use crate::state::{
+    AppState, CommitPopupMode, CurrentPanel, RefreshScope, refresh_all_states, refresh_scopes,
+};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 
 // todo: output command
@@ -98,6 +100,21 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                 }
                 return Ok(false);
             }
+            if app.push_force_popup_open {
+                match key.code {
+                    KeyCode::Esc => {
+                        app.push_force_popup_open = false;
+                        app.push_force_message.clear();
+                    }
+                    KeyCode::Enter | KeyCode::Char(' ') => {
+                        let _ = crate::git_status::force_push();
+                        app.push_force_popup_open = false;
+                        refresh_all_states(app);
+                    }
+                    _ => {}
+                }
+                return Ok(false);
+            }
             if app.commit_popup_open {
                 match key.code {
                     KeyCode::Esc => {
@@ -153,19 +170,16 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                 KeyCode::Char('q') => return Ok(true),
                 KeyCode::Char('p') => {
                     let _ = crate::git_status::pull();
-                    refresh_scopes(
-                        app,
-                        &[
-                            RefreshScope::Branches,
-                            RefreshScope::Commits,
-                            RefreshScope::Status,
-                            RefreshScope::Diff,
-                        ],
-                    );
+                    refresh_all_states(app);
                 }
                 KeyCode::Char('P') => {
-                    let _ = crate::git_status::push();
-                    refresh_scopes(app, &[RefreshScope::Branches, RefreshScope::Commits]);
+                    if crate::git_status::push().is_ok() {
+                        refresh_all_states(app);
+                    } else {
+                        app.push_force_popup_open = true;
+                        app.conflict_message = "Push 失败。是否 Force Push?".to_string();
+                        return Ok(false);
+                    }
                 }
 
                 KeyCode::Char('A') => {
@@ -251,8 +265,8 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                 KeyCode::Char('M') => {
                     if matches!(app.current_panel, CurrentPanel::Branch) {
                         if let Some(idx) = app.branch_state.selected() {
-                            if let Some(branch_line) = app.branches.get(idx) {
-                                let target = crate::git_branch::normalize_branch_name(branch_line);
+                            if let Some(branch) = app.branches.get(idx) {
+                                let target = crate::git_branch::normalize_branch_name(&branch.name);
                                 let _ = crate::git_branch::merge_branch(&target);
                                 if crate::git_branch::has_conflicts().unwrap_or(false) {
                                     app.conflict_popup_open = true;
@@ -278,8 +292,8 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                 KeyCode::Char('r') => {
                     if matches!(app.current_panel, CurrentPanel::Branch) {
                         if let Some(idx) = app.branch_state.selected() {
-                            if let Some(branch_line) = app.branches.get(idx) {
-                                let target = crate::git_branch::normalize_branch_name(branch_line);
+                            if let Some(branch) = app.branches.get(idx) {
+                                let target = crate::git_branch::normalize_branch_name(&branch.name);
                                 let _ = crate::git_branch::rebase_onto_branch(&target);
                                 if crate::git_branch::has_conflicts().unwrap_or(false) {
                                     app.conflict_popup_open = true;
@@ -305,7 +319,7 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                     CurrentPanel::Branch => {
                         if let Some(idx) = app.branch_state.selected() {
                             if let Some(branch) = app.branches.get(idx) {
-                                let _ = crate::git_branch::checkout_branch(branch);
+                                let _ = crate::git_branch::checkout_branch(&branch.name);
                                 refresh_scopes(
                                     app,
                                     &[

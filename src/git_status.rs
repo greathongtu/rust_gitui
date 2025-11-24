@@ -3,7 +3,7 @@ use ratatui::{
     style::{Color, Style},
     widgets::{self, List, ListItem},
 };
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 pub fn widget(files: &[ChangedFile], focused: bool) -> List<'_> {
     let block = widgets::Block::bordered().title("Status");
@@ -134,13 +134,33 @@ pub fn pull() -> std::io::Result<()> {
 }
 
 pub fn push() -> std::io::Result<()> {
-    let status = Command::new("git").args(["push"]).status()?;
+    let status = Command::new("git")
+        .args(["push"])
+        .stderr(Stdio::null())
+        .stdout(Stdio::null())
+        .status()?;
     if status.success() {
         Ok(())
     } else {
         Err(std::io::Error::new(
             std::io::ErrorKind::Other,
             "git push failed",
+        ))
+    }
+}
+
+pub fn force_push() -> std::io::Result<()> {
+    let status = Command::new("git")
+        .args(["push", "--force-with-lease"])
+        .stderr(Stdio::null())
+        .stdout(Stdio::null())
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "git push --force-with-lease failed",
         ))
     }
 }

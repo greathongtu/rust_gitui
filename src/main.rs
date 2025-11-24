@@ -7,7 +7,7 @@ mod state;
 
 use crate::state::AppState;
 use crate::state::CurrentPanel;
-use crate::state::refresh_states;
+use crate::state::refresh_all_states;
 use events::handle_events;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout};
@@ -26,7 +26,7 @@ fn main() -> std::io::Result<()> {
     }
     let terminal = ratatui::init();
     let mut app = AppState::default();
-    refresh_states(&mut app);
+    refresh_all_states(&mut app);
     let result = run_loop(terminal, &mut app);
     ratatui::restore();
     result
@@ -87,6 +87,7 @@ fn draw(frame: &mut Frame, app: &mut AppState) {
     render_branch_popup(frame, app);
     render_reset_popup(frame, app);
     render_conflict_popup(frame, app);
+    render_push_force_popup(frame, app);
     // let status = format!(
     //     "status selected={:?} len={}",
     //     app.status_state.selected(),
@@ -244,4 +245,48 @@ fn render_conflict_popup(frame: &mut Frame<'_>, app: &mut AppState) {
         .block(block)
         .style(Style::default().fg(Color::Red));
     frame.render_widget(para, popup_area);
+}
+
+fn render_push_force_popup(frame: &mut Frame<'_>, app: &mut AppState) {
+    if !app.push_force_popup_open {
+        return;
+    }
+
+    let v = Layout::vertical([
+        Constraint::Percentage(40),
+        Constraint::Length(7),
+        Constraint::Percentage(40),
+    ])
+    .areas(frame.area());
+    let [_, mid_area, _] = v;
+
+    let h = Layout::horizontal([
+        Constraint::Percentage(25),
+        Constraint::Percentage(50),
+        Constraint::Percentage(25),
+    ])
+    .areas(mid_area);
+    let [_, popup_area, _] = h;
+
+    frame.render_widget(Clear, popup_area);
+
+    let options = ["Force push (with lease)", "Cancel"];
+    let items: Vec<ratatui::widgets::ListItem> = options
+        .iter()
+        .map(|s| ratatui::widgets::ListItem::new(*s))
+        .collect();
+
+    let title = if app.push_force_message.is_empty() {
+        "Push 被拒绝。是否强制推送？（回车/空格确认，Esc取消，上下选择，y/n快捷）"
+    } else {
+        &app.push_force_message
+    };
+
+    let block = Block::default().borders(Borders::ALL).title(title);
+
+    let list = ratatui::widgets::List::new(items)
+        .block(block)
+        .highlight_style(Style::default().bg(Color::Yellow));
+
+    frame.render_widget(list, popup_area);
 }
