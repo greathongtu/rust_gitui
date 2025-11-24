@@ -132,14 +132,7 @@ pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
                         }
                         app.commit_popup_open = false;
                         app.commit_input.clear();
-                        refresh_scopes(
-                            app,
-                            &[
-                                RefreshScope::Commits,
-                                RefreshScope::Status,
-                                RefreshScope::Diff,
-                            ],
-                        );
+                        refresh_all_states(app);
                     }
                     KeyCode::Backspace => {
                         app.commit_input.pop();
