@@ -3,7 +3,6 @@ use crate::state::{
 };
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 
-// todo: output command
 pub fn handle_events(app: &mut AppState) -> std::io::Result<bool> {
     match event::read()? {
         Event::Key(key) if key.kind == KeyEventKind::Press => {
