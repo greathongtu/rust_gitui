@@ -110,7 +110,11 @@ pub fn unstage_all_file() -> std::io::Result<()> {
 }
 
 pub fn pull() -> std::io::Result<()> {
-    let status = Command::new("git").args(["pull"]).status()?;
+    let status = Command::new("git")
+        .args(["pull"])
+        .stderr(Stdio::null())
+        .stdout(Stdio::null())
+        .status()?;
     if status.success() {
         Ok(())
     } else {
